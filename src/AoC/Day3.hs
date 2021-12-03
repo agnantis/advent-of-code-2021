@@ -44,49 +44,24 @@ import Data.List (foldl', foldl1')
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
 
-type Input = [String]
+type Input = [[Int]]
 
 type Output = Int
 
 type CIMap = Map Char Int
 ---
 
-breakInput :: String -> [CIMap]
-breakInput = fmap (\x -> M.fromList [(x, 1)])
-
-combineEntries :: Input -> [CIMap]
-combineEntries = foldl1' (zipWith (M.unionWith (+))) . fmap breakInput
-
-flatten :: [CIMap] -> String
-flatten = fmap f
- where
-  f :: CIMap -> Char
-  f c = let
-    d0 = M.findWithDefault 0 '0' c
-    d1 = M.findWithDefault 0 '1' c
-    in if d0 > d1 then '0' else '1'
-
-both :: String -> [String]
-both x = [x, flipBinary x]
-
-flipBinary :: String -> String
-flipBinary = fmap f
- where
-  f '0' = '1'
-  f '1' = '0'
-  f x   = x
-
-binaryToInt :: String -> Int
-binaryToInt xs = sum $ zipWith (\x y -> 2^x * y) [0..] (read . pure <$> reverse xs)
-
 --
 
 fstStar :: Input -> Output
 fstStar xs = let
-   y = flatten $ combineEntries xs
-   ys = both y
-   nt = fmap binaryToInt ys
-   in product nt
+  half = length xs `div` 2
+  fld = foldl1' (zipWith (+)) xs
+  gB = fmap (\x -> if x > half then 1 else 0) fld
+  eB = fmap (\x -> if x < half then 1 else 0) fld
+  bToInt = sum . zipWith (\x y -> 2^x * y) [0..] . reverse
+  in product . fmap bToInt $ [gB, eB]
+
 
 sndStar :: Input -> Output
 sndStar = undefined
@@ -95,5 +70,6 @@ sndStar = undefined
 
 main :: IO ()
 main = do
-  input <- lines <$> readFile "src/input/day3"
+  input <- fmap (fmap (read . pure)) . lines <$> readFile "src/input/day3"
+  print $ take 2 input
   print . (fstStar &&& sndStar) $ input
