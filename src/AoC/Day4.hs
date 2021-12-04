@@ -61,17 +61,31 @@ To guarantee victory against the giant squid, figure out which board will win fi
 Your puzzle answer was 87456.
 
 The first half of this puzzle is complete! It provides one gold star: *
+
+--- Part Two ---
+On the other hand, it might be wise to try a different strategy: let the giant squid win.
+
+You aren't sure how many bingo boards a giant squid could play at once, so rather than waste time counting its arms, the safe thing to do is to figure out which board will win last and choose that one. That way, no matter which boards it picks, it will win for sure.
+
+In the above example, the second board is the last to win, which happens after 13 is eventually called and its middle column is completely marked. If you were to keep playing until this point, the second board would have a sum of unmarked numbers equal to 148 for a final score of 148 * 13 = 1924.
+
+Figure out which board will win last. Once it wins, what would its final score be?
+
+Your puzzle answer was 15561.
+
+Both parts of this puzzle are complete! They provide two gold stars: **
 -}
 
 module AoC.Day4 where
 
 import Control.Arrow ((&&&))
 import Data.Array.IArray (Array, assocs, listArray)
+import Data.Bool (bool)
 import Data.Either (fromLeft, isRight)
 import Data.Foldable (foldr')
 import Data.IntMap.Strict (IntMap)
 import qualified Data.IntMap.Strict as IM
-import Data.List (foldl')
+import Data.List (foldl', partition)
 import Data.List.Split (splitOn, splitWhen)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
@@ -127,12 +141,20 @@ parseBoard lines =
       asList = zip coords (concat board)
    in IM.fromList $ fmap (\((r, c), v) -> (v, ((r, c), False))) asList
 
-drawNumber :: Game -> Int -> Either Int Game
-drawNumber bs n =
+drawNumberToWin :: Game -> Int -> Either Int Game
+drawNumberToWin bs n =
   let newBs = fmap (`addNumberToBoard` n) bs
       winners = filter wins newBs
    in if null winners
         then Right newBs
+        else Left $ points (board $ head winners) n
+
+drawNumberToWinToLoose :: Game -> Int -> Either Int Game
+drawNumberToWinToLoose bs n =
+  let newBs = fmap (`addNumberToBoard` n) bs
+      (winners, loosers) = partition wins newBs
+   in if not (null loosers)
+        then Right loosers
         else Left $ points (board $ head winners) n
 
 addNumberToBoard :: BoardState -> Int -> BoardState
@@ -153,19 +175,20 @@ points b v =
   let filtered = IM.filter (not . snd) b
    in v * sum (IM.keys filtered)
 
-playTheGame :: (Numbers, Game) -> Int
-playTheGame (nums, game) =
-  let f g n = either (const g) (`drawNumber` n) g
+playTheGame :: Bool -> (Numbers, Game) -> Int
+playTheGame winFlag (nums, game) =
+  let strategy = bool drawNumberToWinToLoose drawNumberToWin winFlag
+      f g n = either (const g) (`strategy` n) g
       result = foldl' f (Right game) nums
    in fromLeft 1 result
 
 ---
 
 fstStar :: Input -> Output
-fstStar = playTheGame . parseGame
+fstStar = playTheGame True . parseGame
 
 sndStar :: Input -> Output
-sndStar = undefined
+sndStar = playTheGame False . parseGame
 
 main :: IO ()
 main = do
