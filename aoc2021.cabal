@@ -30,6 +30,7 @@ library
       AoC.Day3
       AoC.Day4
       AoC.Day5
+      AoC.Day6
       Lib
   other-modules:
       Paths_aoc2021
