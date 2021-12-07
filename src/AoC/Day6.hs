@@ -52,17 +52,35 @@ Find a way to simulate lanternfish. How many lanternfish would there be after 80
 Your puzzle answer was 352195.
 
 The first half of this puzzle is complete! It provides one gold star: *
+
+--- Part Two ---
+Suppose the lanternfish live forever and have unlimited food and space. Would they take over the entire ocean?
+
+After 256 days in the example above, there would be a total of 26984457539 lanternfish!
+
+How many lanternfish would there be after 256 days?
+
+Your puzzle answer was 1600306001288.
+
+Both parts of this puzzle are complete! They provide two gold stars: **
 -}
 
-module AoC.Day6 where
+module AoC.Day6 (day6) where
 
 import Control.Arrow ((&&&))
 import Data.Foldable (foldl')
+import Data.IntMap (toList)
+import Data.IntMap.Strict (fromListWith)
 import Data.List.Split (splitOn)
+import Debug.Trace (trace)
 
 type Input = [Int]
 
 type Output = Int
+
+type Age = Int
+
+type Days = Int
 
 ---
 
@@ -77,16 +95,41 @@ step = foldl' fldr []
           vs = if v' == -1 then [6, 8] else [v']
        in vs <> acc
 
+-- |
+-- >>> descendants 6 5
+-- NOW 1
+descendants :: Age -> Days -> Int
+descendants age day =
+  let day' = day - (age + 1)
+      children = max 0 (day' `div` 7)
+      grandChildren = sum . fmap (descendants 8 . (day' -) . (* 7)) $ [0 .. (children -1)]
+      result = if day' < 0 then 0 else 1 + children + grandChildren
+   in result
+
+-- |
+-- >>> frequency [1,2,3,3,2,1,1,2,1]
+-- [(1,4),(2,3),(3,2)]
+frequency :: [Int] -> [(Int, Int)]
+frequency xs = toList (fromListWith (+) [(x, 1) | x <- xs])
+
 -- TODO: Naive and slow implementation
 -- I may use more clever solution if
 -- part 2 requires it
 fstStar :: Input -> Output
 fstStar = length . foldl' (.) id (replicate 80 step)
 
+-- fstStar = bothStars 80
+
 sndStar :: Input -> Output
-sndStar = undefined
+sndStar = bothStars 256
+
+bothStars :: Days -> Input -> Output
+bothStars days = sum . fmap (\(v, f) -> (* f) . (+ 1) . (`descendants` days) $ v) . frequency
 
 ---
+
+day6 :: IO ()
+day6 = main
 
 main :: IO ()
 main = do
