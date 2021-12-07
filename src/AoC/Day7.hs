@@ -40,7 +40,6 @@ module AoC.Day7 where
 
 import Control.Arrow ((&&&))
 import Data.List.Split (splitOn)
-import Debug.Trace (trace)
 
 type Input = [Int]
 
@@ -48,42 +47,47 @@ type Output = Int
 
 ---
 
-fstStar :: Input -> Output
-fstStar xs =
-  let mn = mean xs
-   in searchBest mn xs
-
--- | Search for local minimum
--- as the fuel function should have a single minimum
-searchBest :: Int -> Input -> Output
-searchBest m xs =
-  let [v1, v2, v3] = fmap (`fuelRequired` xs) [m -1 .. m + 1]
-      winner
-        | v1 <= v2 =
-          searchBest (m -1) xs
-        | v3 <= v2 =
-          searchBest (m + 1) xs
-        | otherwise = v2
-   in winner
-
-fuelRequired :: Int -> [Int] -> Int
-fuelRequired m = sum . fmap (abs . (m -))
-
-sndStar :: Input -> Output
-sndStar = undefined
-
 mean :: [Int] -> Int
 mean xs =
   let total = sum xs
       len = length xs
    in total `div` len
 
----
-sampleData :: String
-sampleData = "16,1,2,0,4,2,7,1,2,14"
+-- | Search for local minimum
+-- as the fuel function should have a single minimum
+searchBest :: (Int -> Int -> Int) -> Int -> Input -> Output
+searchBest costf m xs =
+  let [v1, v2, v3] = fmap (fuelRequired costf xs) [m -1, m, m + 1]
+      winner
+        | v1 <= v2 = searchBest costf (m - 2) xs
+        | v3 <= v2 = searchBest costf (m + 2) xs
+        | otherwise = v2
+   in winner
 
+fuelRequired :: (Int -> Int -> Int) -> [Int] -> Int -> Int
+fuelRequired costf xs m = sum . fmap (costf m) $ xs
+
+cost1 :: Int -> Int -> Int
+cost1 v m = abs (m - v)
+
+-- |
+-- >>> cost2 16 5
+-- 66
+cost2 :: Int -> Int -> Int
+cost2 a b =
+  let ab = abs (a - b)
+   in ((ab + 1) * ab) `div` 2
+
+--
+
+fstStar :: Input -> Output
+fstStar xs = searchBest cost1 (mean xs) xs
+
+sndStar :: Input -> Output
+sndStar xs = searchBest cost2 (mean xs) xs
+
+---
 main :: IO ()
 main = do
   input <- fmap read . splitOn "," . head . lines <$> readFile "src/input/day7"
-  -- input <- pure ((fmap read . splitOn "," .  head . lines) sampleData)
   print . (fstStar &&& sndStar) $ input
