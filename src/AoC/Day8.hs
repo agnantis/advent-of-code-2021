@@ -1,3 +1,5 @@
+{-# LANGUAGE RecordWildCards #-}
+
 {-
 
 --- Day 8: Seven Segment Search ---
@@ -71,27 +73,88 @@ In the output values, how many times do digits 1, 4, 7, or 8 appear?
 Your puzzle answer was 375.
 
 The first half of this puzzle is complete! It provides one gold star: *
+
+--- Part Two ---
+Through a little deduction, you should now be able to determine the remaining digits. Consider again the first example above:
+
+acedgfb cdfbe gcdfa fbcad dab cefabd cdfgeb eafb cagedb ab |
+cdfeb fcadb cdfeb cdbaf
+After some careful analysis, the mapping between signal wires and segments only make sense in the following configuration:
+
+ dddd
+e    a
+e    a
+ ffff
+g    b
+g    b
+ cccc
+So, the unique signal patterns would correspond to the following digits:
+
+acedgfb: 8
+cdfbe: 5
+gcdfa: 2
+fbcad: 3
+dab: 7
+cefabd: 9
+cdfgeb: 6
+eafb: 4
+cagedb: 0
+ab: 1
+Then, the four digits of the output value can be decoded:
+
+cdfeb: 5
+fcadb: 3
+cdfeb: 5
+cdbaf: 3
+Therefore, the output value for this entry is 5353.
+
+Following this same process for each entry in the second, larger example above, the output value of each entry can be determined:
+
+fdgacbe cefdb cefbgd gcbe: 8394
+fcgedb cgb dgebacf gc: 9781
+cg cg fdcagb cbg: 1197
+efabcd cedba gadfec cb: 9361
+gecf egdcabf bgf bfgea: 4873
+gebdcfa ecba ca fadegcb: 8418
+cefg dcbef fcge gbcadfe: 4548
+ed bcgafe cdgba cbgef: 1625
+gbdfcae bgc cg cgb: 8717
+fgae cfgab fg bagce: 4315
+Adding all of the output values in this larger example produces 61229.
+
+For each entry, determine all of the wire/segment connections and decode the four-digit output values. What do you get if you add up all of the output values?
+
+Your puzzle answer was 1019355.
+
+Both parts of this puzzle are complete! They provide two gold stars: **
 -}
 
 module AoC.Day8 where
 
 import Control.Arrow ((&&&))
-import Data.IntMap.Strict (IntMap, foldlWithKey')
+import Data.IntMap.Strict (IntMap, foldlWithKey', (!))
 import qualified Data.IntMap.Strict as M
+import Data.List (sort, (\\))
 import Data.List.Split (splitOn)
 import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as MP
+import Debug.Trace (trace)
 
 data Line = Line
   { patterns :: Patterns,
     values :: Values
-  } deriving Show
+  }
+  deriving (Show)
 
 type Input = [Line]
+
 type Output = Int
 
 type Patterns = [String]
 
 type Values = [String]
+
+data Segment = A | B | C | D | E | F | G deriving (Show)
 
 digitMap :: IntMap Int
 digitMap = M.fromList [(0, 6), (1, 2), (2, 5), (3, 5), (4, 4), (5, 5), (6, 6), (7, 3), (8, 7), (9, 6)]
@@ -99,22 +162,51 @@ digitMap = M.fromList [(0, 6), (1, 2), (2, 5), (3, 5), (4, 4), (5, 5), (6, 6), (
 segmentMap :: IntMap [Int]
 segmentMap = foldlWithKey' (\acc k v -> M.insertWith (<>) v [k] acc) M.empty digitMap
 
+getWithSize :: Int -> Line -> [String]
+getWithSize l Line {..} = filter ((== l) . length) patterns
+
+decodeLine :: Line -> Map String Int
+decodeLine l@Line {..} =
+  let [one] = getWithSize 2 l
+      [seven] = getWithSize 3 l
+      [eight] = getWithSize 7 l
+      [four] = getWithSize 4 l
+      v690 = getWithSize 6 l
+      [six] = filter (not . null . (one \\)) v690
+      v235 = getWithSize 5 l
+      [five] = filter (null . (\\ six)) v235
+      v23 = v235 \\ [five]
+      [two] = filter ((== 3) . length . (\\ seven)) v23
+      [three] = v23 \\ [two]
+      v90 = v690 \\ [six]
+      [nine] = filter ((== 2) . length . (\\ four)) v90
+      [zero] = v90 \\ [nine]
+   in MP.fromList $ zip [zero, one, two, three, four, five, six, seven, eight, nine] [0 ..]
+
+computeCode :: Line -> Int
+computeCode l@Line {..} =
+  let decoder = decodeLine l
+      digits = fmap (decoder MP.!) values
+   in digitsToInt digits
+
+digitsToInt :: [Int] -> Int
+digitsToInt = sum . zipWith (\e d -> d * 10 ^ e) [0 ..] . reverse
+
 parseLine :: String -> Line
 parseLine line =
   let [pS, vS] = words <$> splitOn "|" line
-   in Line pS vS
+   in Line (sort <$> pS) (sort <$> vS)
 
 ---
 
 fstStar :: Input -> Output
 fstStar = sum . fmap (length . filter lFilter . values)
- where
-  singles = M.keys $ M.filter ((== 1) . length) segmentMap
-  lFilter = (`elem` singles) . length
-
+  where
+    singles = M.keys $ M.filter ((== 1) . length) segmentMap
+    lFilter = (`elem` singles) . length
 
 sndStar :: Input -> Output
-sndStar = undefined
+sndStar = sum . fmap computeCode
 
 ---
 
